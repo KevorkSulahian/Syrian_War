@@ -2,15 +2,14 @@ library(dplyr)
 library(ggplot2)
 library(lubridate)
 library(stringr)
-
+# library(ggmap)
+library(plotGoogleMaps)
 
 syria <- read.csv("data.csv")
 
 
 syria <- syria[c("data_id","event_date", "year", "event_type", "actor1", "assoc_actor_1", "actor2" ,"assoc_actor_2",
-                "admin1", "admin2", "admin3", "geo_precision", "fatalities")]
-
-
+                "admin1", "admin2", "admin3", "geo_precision", "fatalities", "longitude", "latitude")]
 
 syria <- syria[-1,]
 
@@ -25,7 +24,7 @@ syria$event_date <- as.Date(syria$event_date, format = "%Y-%m-%d")
 syria$fatalities <- as.numeric(syria$fatalities)
 
 colnames(syria) <- c("ID", "date", "year", "type", "team1", "team1_assister", "team2",
-                     "team2_assister", "state", "city", "street", "geo_precision", "fatalities")
+                     "team2_assister", "state", "city", "street", "geo_precision", "fatalities", "long", "lat")
 
 fighters <- as.data.frame(unique(syria$team1))
 
@@ -74,4 +73,20 @@ by_state <- syria %>%
             attack = sum(government_attack)) 
 
 
-ggplot(by_state, aes(y  =  death, x = state)) + geom_bar(stat = "identity")
+ggplot(by_state, aes(y  =  death, x = state, fill = state)) + geom_bar(stat = "identity")
+
+
+lon <- syria$long
+# lon <- str_replace_all(lon, pattern = "\\..*", replacement = "")
+lon <- as.numeric(levels(lon))[lon]
+lat <- syria$lat
+
+lat <- as.numeric(levels(lat))[lat]
+
+
+coords <- as.data.frame(cbind(lon=lon,lat=lat))
+coordinates(coords) <- ~lat+lon 
+
+
+mapgilbert <- get_map(location = c(lon = mean(df$lon), lat = mean(df$lat)), zoom = 4,
+                      maptype = "satellite", scale = 2)
