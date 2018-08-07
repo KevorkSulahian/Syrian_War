@@ -2,16 +2,19 @@ library(dplyr)
 library(ggplot2)
 library(lubridate)
 library(stringr)
-# library(ggmap)
-library(plotGoogleMaps)
+library(ggmap)
 
-syria <- read.csv("data.csv")
+syria <- read.csv("data.csv", stringsAsFactors = F)
 
 
 syria <- syria[c("data_id","event_date", "year", "event_type", "actor1", "assoc_actor_1", "actor2" ,"assoc_actor_2",
-                "admin1", "admin2", "admin3", "geo_precision", "fatalities", "longitude", "latitude")]
+                "admin1", "admin2", "admin3", "geo_precision", "fatalities")]
 
 syria <- syria[-1,]
+
+syria$state <- str_replace_all(syria$state, pattern = "^As-", replacement = "Al-")
+syria$city <- str_replace_all(syria$city, pattern = "^As-", replacement = "Al-")
+syria$street <- str_replace_all(syria$street, pattern = "^As-", replacement = "Al-")
 
 sapply(syria, class)
 # event_date is factor
@@ -19,12 +22,10 @@ sapply(syria, class)
 
 syria$event_date <- as.Date(syria$event_date, format = "%Y-%m-%d")
 
-#syria$year_month <- substr(syria$event_date, 0,07)
-
 syria$fatalities <- as.numeric(syria$fatalities)
 
 colnames(syria) <- c("ID", "date", "year", "type", "team1", "team1_assister", "team2",
-                     "team2_assister", "state", "city", "street", "geo_precision", "fatalities", "long", "lat")
+                     "team2_assister", "state", "city", "street", "geo_precision", "fatalities")
 
 fighters <- as.data.frame(unique(syria$team1))
 
@@ -76,17 +77,31 @@ by_state <- syria %>%
 ggplot(by_state, aes(y  =  death, x = state, fill = state)) + geom_bar(stat = "identity")
 
 
-lon <- syria$long
-# lon <- str_replace_all(lon, pattern = "\\..*", replacement = "")
-lon <- as.numeric(levels(lon))[lon]
-lat <- syria$lat
+## Hama only
 
-lat <- as.numeric(levels(lat))[lat]
+get_hama <- syria %>%
+  filter(state == "Hama") 
+
+get_hama <- distinct(get_hama, street, .keep_all = TRUE)
+
+df.Hama_locations <- tibble(location = c(get_hama$state, get_hama$city, get_hama$street))
+
+df.Hama_locations <- geocode(df.Hama_locations$location)
+
+get_map("Syria Hama", zoom = 8) %>% ggmap() +
+  geom_point(data = df.Hama_locations,aes(x = lon, y = lat),
+             color = "red", size = 3)
 
 
-coords <- as.data.frame(cbind(lon=lon,lat=lat))
-coordinates(coords) <- ~lat+lon 
 
+## all states
 
-mapgilbert <- get_map(location = c(lon = mean(df$lon), lat = mean(df$lat)), zoom = 4,
-                      maptype = "satellite", scale = 2)
+get_states <- distinct(syria, street, .keep_all = TRUE)
+
+df.state_location <- tibble(location = c(get_states$state, get_states$city, get_states$street))
+
+df.state_location <- geocode(df.state_location$location)
+
+get_map("Syria", zoom = 8) %>% ggmap() +
+geom_point(data = df.state_location, aes( x = lon, y= lat),
+           color = "red", size = 3)
