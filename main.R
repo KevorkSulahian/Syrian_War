@@ -3,7 +3,7 @@ library(ggplot2)
 library(lubridate)
 library(stringr)
 library(ggmap)
-library(lubridate)
+
 
 syria <- read.csv("data.csv", stringsAsFactors = F)
 
@@ -32,7 +32,7 @@ syria$city <- str_replace_all(syria$street, pattern = "Ash", replacement = "Al")
 syria$street <- str_replace_all(syria$street, pattern = "^As-", replacement = "Al-")
 syria$street <- str_replace_all(syria$street, pattern = "^Ash-", replacement = "Al-")
 syria$street <- str_replace_all(syria$street, pattern = "Ash", replacement = "Al")
-
+syria <- syria[!grepl("Jizeh", syria$street),]
 
 fighters <- as.data.frame(unique(syria$team1))
 
@@ -123,7 +123,7 @@ draw_map <- function(this_state = NA) {
   if(is.na(this_state)) {
   get_states <- distinct(syria, street, .keep_all = TRUE)
   
-  df.states_location <- tibble(location = c(get_states$state, get_states$city, get_states$street))
+  df.states_location <- tibble(location = c(get_states$street))
   
   df.states_location <- geocode(df.states_location$location)
   
@@ -137,7 +137,9 @@ draw_map <- function(this_state = NA) {
     
     get_state <- distinct(get_state, street, .keep_all = TRUE)
     
-    df.state_locations <- tibble(location = c(get_state$state, get_state$city, get_state$street))
+    df.state_locations <- tibble(location = c(get_state$street))
+    
+    df.state_locations <- distinct(df.state_locations, .keep_all = TRUE)
     
     df.state_locations <- geocode(df.state_locations$location)
     
@@ -151,7 +153,7 @@ draw_map_specific <- function(df) {
   
   df <- distinct(df, street, .keep_all = TRUE)
   
-  df.state_locations <- tibble(location = c(df$state, df$city, df$street))
+  df.state_locations <- tibble(location = c(df$street))
   
   df.state_locations <- geocode(df.state_locations$location)
   
@@ -186,5 +188,5 @@ this_date <- as_date("2018-06-01")
 this_date_battles <- draw_map_specific(this_date)
 
 ### show who's attacking
-
-# ggplot(this_date, aes(x = ))
+hey <- c(sum(this_date$government_attack), sum(this_date$government_defend))
+  
