@@ -1,10 +1,13 @@
+## By Kevork Sulahian
+
+## used Libraries
 library(dplyr)
 library(ggplot2)
 library(lubridate)
 library(stringr)
 library(ggmap)
 
-
+## Cleaning the data
 syria <- read.csv("data.csv", stringsAsFactors = F)
 
 syria <- syria[-1,]
@@ -25,7 +28,7 @@ colnames(syria) <- c("ID", "date", "year", "type", "team1", "team1_assister", "t
                      "team2_assister", "state", "city", "street", "geo_precision", "fatalities")
 
 
-
+### Note many of the names were written wrong and I think it would take insane amout of time to correct each and every single one of them
 syria$state <- str_replace_all(syria$state, pattern = "^As-", replacement = "Al-")
 syria$city <- str_replace_all(syria$city, pattern = "^As-", replacement = "Al-")
 syria$city <- str_replace_all(syria$street, pattern = "Ash", replacement = "Al")
@@ -34,8 +37,12 @@ syria$street <- str_replace_all(syria$street, pattern = "^Ash-", replacement = "
 syria$street <- str_replace_all(syria$street, pattern = "Ash", replacement = "Al")
 syria <- syria[!grepl("Jizeh", syria$street),]
 
+
+### Checking the fighting groups in Syria (248 different groups)
 fighters <- as.data.frame(unique(syria$team1))
 
+## since there are too many and their names are kinda similar or different from what online data shows
+## I believed it would be much easier to show the main battles (Syrian Army vs Rebel/terrorist groups)
 military_syria <- str_extract_all(syria$team1, pattern = "^Military Forces of Syria")
 military_syria_defend <- str_extract_all(syria$team2, pattern = "^Military Forces of Syria")
 
@@ -66,6 +73,8 @@ for(i in military_syria_defend) {
 syria$government_attack <- syria_attack
 syria$government_defend <- syria_defend
 
+
+### sorting the data by months
 by_month <- syria %>%
   group_by(month = floor_date(date, "month")) %>%
   summarize(death = sum(fatalities),
@@ -78,6 +87,8 @@ by_month$month_abb <- months(as.Date(by_month$month), abbreviate = TRUE)
 by_month$month <- as.numeric(format(as.Date(by_month$month), "%m"))
 by_month$attack <- as.numeric(by_month$attack)
 
+
+### Visualizing the by_month data
 ggplot(by_month, aes(x = factor(month, levels = c(1:12)), y = death, group = year, colour=year)) + 
   geom_line() +
   geom_point() +
@@ -97,7 +108,7 @@ ggplot(by_month, aes(x = factor(month, levels = c(1:12)), y = defend, group = ye
   labs(x = "months", y = "defend", title = "difference in the number of times attack by the main Army of Syria was attacked between 2017 and 2018")
 
 
-### by state
+### sorting data by state
 
 by_state <- syria %>%
   group_by(state) %>%
@@ -116,7 +127,7 @@ ggplot(by_state, aes(y  =  defend, x = state, fill = state)) + geom_bar(stat = "
   labs(x = "states of Syria", y = "number of against the Syrian Army", title = "Number of against the Syrian Army in each state")
 
 
-## function to get unique battle points all states
+## function to draw map based on state
 
 draw_map <- function(this_state = NA) {
   
@@ -139,8 +150,6 @@ draw_map <- function(this_state = NA) {
     
     df.state_locations <- tibble(location = c(get_state$street))
     
-    df.state_locations <- distinct(df.state_locations, .keep_all = TRUE)
-    
     df.state_locations <- geocode(df.state_locations$location)
     
     return(get_map(paste0("Syria,", this_state), zoom = 8) %>% ggmap() +
@@ -149,6 +158,7 @@ draw_map <- function(this_state = NA) {
   }
 }
 
+### function to draw map based on Date
 draw_map_specific <- function(df) {
   
   df <- distinct(df, street, .keep_all = TRUE)
@@ -157,13 +167,20 @@ draw_map_specific <- function(df) {
   
   df.state_locations <- geocode(df.state_locations$location)
   
-  return(get_map(paste0("Syria,", df$state), zoom = 8) %>% ggmap() +
+  df.state_locations <- df.state_locations[complete.cases(df.state_locations), ]
+  
+  this_state_name <- df$state[1]
+  
+  return(get_map(paste0("Syria,", this_state_name), zoom = 8) %>% ggmap() +
            geom_point(data = df.state_locations,aes(x = lon, y = lat),
                       color = "red", size = 3))
 }
-
+# calling the functions
+# Note this will take a lot of time Advise especially all
 Aleppo <- draw_map("Aleppo")
+
 all <- draw_map(NA)
+
 ### function to get battle by date
 
 as_date <- function(my_date) {
@@ -183,10 +200,18 @@ as_date <- function(my_date) {
   return(most_state)
 }
 
-this_date <- as_date("2018-06-01")
-
-this_date_battles <- draw_map_specific(this_date)
-
-### show who's attacking
-hey <- c(sum(this_date$government_attack), sum(this_date$government_defend))
+this_month <- function(Year_Month_Day) {
+  ### for one month only
+  this_date <- as_date(Year_Month_Day)
+  # print(this_date)
+  this_date_battles <- draw_map_specific(this_date)
   
+  ### show who's attacking
+  # print(c(sum(this_date$government_attack), sum(this_date$government_defend)))
+
+  return(this_date_battles)
+}
+
+## this mapping will also consume a lot of time
+September_2017 <- this_month("2017-08-01")
+August_2018 <- this_month("2018-06-01")
